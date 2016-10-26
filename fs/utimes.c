@@ -54,15 +54,12 @@ static int utimes_common(struct path *path, struct timespec *times)
 	struct iattr newattrs;
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
-
 	error = mnt_want_write(path->mnt);
 	if (error)
 		goto out;
-
 	if (times && times[0].tv_nsec == UTIME_NOW &&
 		     times[1].tv_nsec == UTIME_NOW)
 		times = NULL;
-
 	newattrs.ia_valid = ATTR_CTIME | ATTR_MTIME | ATTR_ATIME;
 	if (times) {
 		if (times[0].tv_nsec == UTIME_OMIT)
@@ -72,7 +69,6 @@ static int utimes_common(struct path *path, struct timespec *times)
 			newattrs.ia_atime.tv_nsec = times[0].tv_nsec;
 			newattrs.ia_valid |= ATTR_ATIME_SET;
 		}
-
 		if (times[1].tv_nsec == UTIME_OMIT)
 			newattrs.ia_valid &= ~ATTR_MTIME;
 		else if (times[1].tv_nsec != UTIME_NOW) {
@@ -87,31 +83,17 @@ static int utimes_common(struct path *path, struct timespec *times)
 		 */
 		newattrs.ia_valid |= ATTR_TIMES_SET;
 	} else {
-		/*
-		 * If times is NULL (or both times are UTIME_NOW),
-		 * then we need to check permissions, because
-		 * inode_change_ok() won't do it.
-		 */
-		error = -EACCES;
-                if (IS_IMMUTABLE(inode))
-			goto mnt_drop_write_and_out;
-
-		if (!inode_owner_or_capable(inode)) {
-			error = inode_permission2(path->mnt, inode, MAY_WRITE);
-			if (error)
-				goto mnt_drop_write_and_out;
-		}
+		newattrs.ia_valid |= ATTR_TOUCH;
 	}
 retry_deleg:
 	mutex_lock(&inode->i_mutex);
-	error = notify_change(path->dentry, &newattrs, &delegated_inode);
+	error = notify_change2(path->mnt, path->dentry, &newattrs, &delegated_inode);
 	mutex_unlock(&inode->i_mutex);
 	if (delegated_inode) {
 		error = break_deleg_wait(&delegated_inode);
 		if (!error)
 			goto retry_deleg;
 	}
-
 	mnt_drop_write(path->mnt);
 out:
 	return error;
