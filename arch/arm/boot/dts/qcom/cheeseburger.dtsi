@@ -203,6 +203,11 @@
 		compatible = "ramoops";
 		status = "ok";
 		memory-region = <&ramoops_mem>;
+		record-size = <0x0 0x10000>;
+		console-size = <0x0 0x60000>;
+		ftrace-size = <0x0 0x10000>;
+		pmsg-size = <0x0 0x20000>;
+		ecc-size = <16>;
 	};
 
 	/* Add  0x8c 0x21C, 0xf0 0x23C */
