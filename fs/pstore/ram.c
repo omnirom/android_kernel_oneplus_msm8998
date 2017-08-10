@@ -45,7 +45,7 @@ module_param(record_size, ulong, 0400);
 MODULE_PARM_DESC(record_size,
 		"size of each dump done on oops/panic");
 
-static ulong ramoops_console_size = 256*1024UL;
+static ulong ramoops_console_size = MIN_MEM_SIZE;
 module_param_named(console_size, ramoops_console_size, ulong, 0400);
 MODULE_PARM_DESC(console_size, "size of kernel console log");
 
@@ -57,7 +57,7 @@ static ulong ramoops_device_info_size = MIN_MEM_SIZE;
 module_param_named(device_info_size, ramoops_device_info_size, ulong, 0400);
 MODULE_PARM_DESC(device_info_size, "size of device info");
 
-static ulong ramoops_pmsg_size = 256*1024UL;
+static ulong ramoops_pmsg_size = MIN_MEM_SIZE;
 
 module_param_named(pmsg_size, ramoops_pmsg_size, ulong, 0400);
 MODULE_PARM_DESC(pmsg_size, "size of user space message log");
@@ -505,6 +505,30 @@ void notrace ramoops_console_write_buf(const char *buf, size_t size)
 	persistent_ram_write(cxt->cprz, buf, size);
 }
 
+static int ramoops_parse_dt_size(struct platform_device *pdev,
+		const char *propname, unsigned long *val)
+{
+	u64 val64;
+	int ret;
+
+	ret = of_property_read_u64(pdev->dev.of_node, propname, &val64);
+	if (ret == -EINVAL) {
+		*val = 0;
+		return 0;
+	} else if (ret != 0) {
+		dev_err(&pdev->dev, "failed to parse property %s: %d\n",
+				propname, ret);
+		return ret;
+	}
+
+	if (val64 > ULONG_MAX) {
+		dev_err(&pdev->dev, "invalid %s %llu\n", propname, val64);
+		return -EOVERFLOW;
+	}
+
+	*val = val64;
+	return 0;
+}
 
 static int ramoops_parse_dt(struct platform_device *pdev,
 		struct ramoops_platform_data *pdata)
@@ -536,13 +560,36 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 	pdata->mem_type = of_property_read_bool(of_node, "unbuffered");
 	pdata->dump_oops = !of_property_read_bool(of_node, "no-dump-oops");
 
-	pdata->record_size = record_size;
-	pdata->console_size = ramoops_console_size;
-	pdata->ftrace_size = ramoops_ftrace_size;
-	pdata->device_info_size = ramoops_device_info_size;
-	pdata->pmsg_size = ramoops_pmsg_size;
-	pdata->dump_oops = dump_oops;
-	pdata->ecc_info.ecc_size = ecc_size = 0;
+	ret = ramoops_parse_dt_size(pdev, "record-size", &pdata->record_size);
+	if (ret < 0)
+		return ret;
+
+	ret = ramoops_parse_dt_size(pdev, "console-size", &pdata->console_size);
+	if (ret < 0)
+		return ret;
+
+	ret = ramoops_parse_dt_size(pdev, "ftrace-size", &pdata->ftrace_size);
+	if (ret < 0)
+		return ret;
+
+	ret = ramoops_parse_dt_size(pdev, "device-info-size", &pdata->device_info_size);
+	if (ret < 0)
+		return ret;
+
+	ret = ramoops_parse_dt_size(pdev, "pmsg-size", &pdata->pmsg_size);
+	if (ret < 0)
+		return ret;
+
+	ret = of_property_read_u32(of_node, "ecc-size", &ecc_size);
+	if (ret == 0) {
+		if (ecc_size > INT_MAX) {
+			dev_err(&pdev->dev, "invalid ecc-size %u\n", ecc_size);
+			return -EOVERFLOW;
+		}
+		pdata->ecc_info.ecc_size = ecc_size;
+	} else if (ret != -EINVAL) {
+		return ret;
+	}
 
 	return 0;
 }
