@@ -30,6 +30,7 @@
 #include "msm-digital-cdc.h"
 #include "msm-cdc-common.h"
 #include "../../msm/sdm660-common.h"
+#include "../../../../drivers/base/regmap/internal.h"
 
 #define DRV_NAME "msm_digital_codec"
 #define MCLK_RATE_9P6MHZ        9600000
@@ -71,6 +72,8 @@ static int msm_digcdc_clock_control(bool flag)
 {
 	int ret = -EINVAL;
 	struct msm_asoc_mach_data *pdata = NULL;
+	struct msm_dig_priv *msm_dig_cdc =
+				snd_soc_codec_get_drvdata(registered_digcodec);
 
 	pdata = snd_soc_card_get_drvdata(registered_digcodec->component.card);
 
@@ -84,6 +87,12 @@ static int msm_digcdc_clock_control(bool flag)
 			if (ret < 0) {
 				pr_err("%s:failed to enable the MCLK\n",
 				       __func__);
+				/*
+				 * Avoid access to lpass register
+				 * as clock enable failed during SSR.
+				 */
+				if (ret == -ENODEV)
+					msm_dig_cdc->regmap->cache_only = true;
 				mutex_unlock(&pdata->cdc_int_mclk0_mutex);
 				return ret;
 			}
@@ -2091,10 +2100,18 @@ static int msm_dig_cdc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int msm_dig_suspend(struct device *dev)
 {
-	struct msm_asoc_mach_data *pdata =
-	snd_soc_card_get_drvdata(registered_digcodec->component.card);
+	struct msm_asoc_mach_data *pdata;
 	struct msm_dig_priv *msm_dig_cdc = dev_get_drvdata(dev);
 
+	if (!registered_digcodec || !msm_dig_cdc) {
+		pr_debug("%s:digcodec not initialized, return\n", __func__);
+		return 0;
+	}
+	pdata = snd_soc_card_get_drvdata(registered_digcodec->component.card);
+	if (!pdata) {
+		pr_debug("%s:card not initialized, return\n", __func__);
+		return 0;
+	}
 	if (msm_dig_cdc->dapm_bias_off) {
 		pr_debug("%s: mclk cnt = %d, mclk_enabled = %d\n",
 			__func__, atomic_read(&pdata->int_mclk0_rsc_ref),

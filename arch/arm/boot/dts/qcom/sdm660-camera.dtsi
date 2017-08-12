@@ -512,7 +512,8 @@
 		camss-vdd-supply = <&gdsc_camss_top>;
 		smmu-vdd-supply = <&gdsc_bimc_smmu>;
 		qcom,vdd-names = "vdd", "camss-vdd", "smmu-vdd";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_mmss MMSS_THROTTLE_CAMSS_AXI_CLK>,
+			<&clock_rpmcc MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -593,7 +594,8 @@
 		camss-vdd-supply = <&gdsc_camss_top>;
 		smmu-vdd-supply = <&gdsc_bimc_smmu>;
 		qcom,vdd-names = "vdd", "camss-vdd", "smmu-vdd";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_mmss MMSS_THROTTLE_CAMSS_AXI_CLK>,
+			<&clock_rpmcc MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,

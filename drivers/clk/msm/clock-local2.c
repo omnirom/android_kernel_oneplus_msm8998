@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -928,7 +928,8 @@ static unsigned long branch_clk_get_rate(struct clk *c)
 {
 	struct branch_clk *branch = to_branch_clk(c);
 
-	if (branch->max_div)
+	if (branch->max_div ||
+			(branch->aggr_sibling_rates && !branch->is_prepared))
 		return branch->c.rate;
 
 	return clk_get_rate(c->parent);
@@ -1546,8 +1547,8 @@ static int set_rate_pixel(struct clk *clk, unsigned long rate)
 {
 	struct rcg_clk *rcg = to_rcg_clk(clk);
 	struct clk_freq_tbl *pixel_freq = rcg->current_freq;
-	int frac_num[] = {3, 2, 4, 1};
-	int frac_den[] = {8, 9, 9, 1};
+	int frac_num[] = {1, 2, 4, 3, 2};
+	int frac_den[] = {1, 3, 9, 8, 9};
 	int delta = 100000;
 	int i, rc;
 
