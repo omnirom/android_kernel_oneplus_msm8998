@@ -100,37 +100,6 @@ enum extscan_report_events_type {
 #endif
 
 /**
- * wma_dec_pending_scans() - Decrements the number of pending scans
- * @wma:	The WMA handle to operate on
- *
- * Return: none
- */
-static void wma_dec_pending_scans(tp_wma_handle wma)
-{
-	int32_t scan_cnt = qdf_atomic_read(&wma->num_pending_scans);
-
-	if (scan_cnt <= 0) {
-		WMA_LOGE("Stopping pending scan, but no scans were pending!");
-		return;
-	}
-
-	qdf_atomic_dec(&wma->num_pending_scans);
-	WMA_LOGI("Ending pending scan: %d <- %d", scan_cnt, scan_cnt - 1);
-}
-
-/**
- * wma_inc_pending_scans() - Increments the number of pending scans
- * @wma:	The WMA handle to operate on
- *
- * Return: none
- */
-static void wma_inc_pending_scans(tp_wma_handle wma)
-{
-	int32_t scan_cnt = qdf_atomic_inc_return(&wma->num_pending_scans);
-	WMA_LOGI("Starting pending scan: %d -> %d", scan_cnt - 1, scan_cnt);
-}
-
-/**
  * wma_is_mcc_24G() - check that if device is in 2.4GHz MCC
  * @handle: wma handle
  *
@@ -566,8 +535,6 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 		goto error1;
 	}
 
-	wma_inc_pending_scans(wma_handle);
-
 	WMA_LOGI("scan_id 0x%x, vdev_id %d, p2pScanType %d, msg_type 0x%x",
 		 cmd.scan_id, cmd.vdev_id, scan_req->p2pScanType, msg_type);
 
@@ -587,7 +554,7 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 				 &cmd);
 	if (QDF_IS_STATUS_ERROR(qdf_status)) {
 		WMA_LOGE("wmi_unified_cmd_send returned Error %d", qdf_status);
-		goto dec_scans;
+		goto error1;
 	}
 
 	if (NULL != cmd.chan_list)
@@ -596,9 +563,6 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 	WMA_LOGI("WMA --> WMI_START_SCAN_CMDID");
 
 	return QDF_STATUS_SUCCESS;
-
-dec_scans:
-	wma_dec_pending_scans(wma_handle);
 
 error1:
 	if (NULL != cmd.chan_list)
@@ -1589,7 +1553,7 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 {
 	int i;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	uint32_t len = 0, num_bssid_black_list = 0, num_ssid_white_list = 0,
+	uint32_t num_bssid_black_list = 0, num_ssid_white_list = 0,
 	   num_bssid_preferred_list = 0;
 	uint32_t op_bitmap = 0;
 	struct roam_ext_params *roam_params;
@@ -1608,23 +1572,16 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 			op_bitmap |= 0x1;
 			num_bssid_black_list =
 				roam_params->num_bssid_avoid_list;
-			len = num_bssid_black_list * sizeof(wmi_mac_addr);
-			len += WMI_TLV_HDR_SIZE;
 			break;
 		case REASON_ROAM_SET_SSID_ALLOWED:
 			op_bitmap |= 0x2;
 			num_ssid_white_list =
 				roam_params->num_ssid_allowed_list;
-			len = num_ssid_white_list * sizeof(wmi_ssid);
-			len += WMI_TLV_HDR_SIZE;
 			break;
 		case REASON_ROAM_SET_FAVORED_BSSID:
 			op_bitmap |= 0x4;
 			num_bssid_preferred_list =
 				roam_params->num_bssid_favored;
-			len = num_bssid_preferred_list * sizeof(wmi_mac_addr);
-			len += WMI_TLV_HDR_SIZE;
-			len += num_bssid_preferred_list * sizeof(A_UINT32);
 			break;
 		default:
 			WMA_LOGD("%s : Roam Filter need not be sent", __func__);
@@ -1637,11 +1594,7 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 		 * across connections.*/
 		op_bitmap = 0x2 | 0x4;
 		num_ssid_white_list = roam_params->num_ssid_allowed_list;
-		len = num_ssid_white_list * sizeof(wmi_ssid);
 		num_bssid_preferred_list = roam_params->num_bssid_favored;
-		len += num_bssid_preferred_list * sizeof(wmi_mac_addr);
-		len += num_bssid_preferred_list * sizeof(A_UINT32);
-		len += (2 * WMI_TLV_HDR_SIZE);
 	}
 
 	/* fill in fixed values */
@@ -1650,7 +1603,6 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 	params->num_bssid_black_list = num_bssid_black_list;
 	params->num_ssid_white_list = num_ssid_white_list;
 	params->num_bssid_preferred_list = num_bssid_preferred_list;
-	params->len = len;
 	qdf_mem_copy(params->bssid_avoid_list, roam_params->bssid_avoid_list,
 			MAX_BSSID_AVOID_LIST * sizeof(struct qdf_mac_addr));
 
@@ -3036,6 +2988,11 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 	if ((wma_is_vdev_in_ap_mode(wma, req.vdev_id) == true) ||
 		(params->restart_on_chan_switch == true))
 		wma->interfaces[req.vdev_id].is_channel_switch = true;
+
+	if (params->restart_on_chan_switch == true &&
+			wma->interfaces[req.vdev_id].beacon_filter_enabled)
+		wma_remove_beacon_filter(wma,
+				&wma->interfaces[req.vdev_id].beacon_filter);
 
 	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam() &&
 	    wma_is_vdev_up(vdev_id)) {
@@ -5725,9 +5682,6 @@ int wma_scan_event_callback(WMA_HANDLE handle, uint8_t *data,
 	}
 
 	wma_send_msg(wma_handle, WMA_RX_SCAN_EVENT, (void *)scan_event, 0);
-
-	if ((wmi_event->event & WMA_SCAN_END_EVENT) > 0)
-		wma_dec_pending_scans(wma_handle);
 
 	return 0;
 }

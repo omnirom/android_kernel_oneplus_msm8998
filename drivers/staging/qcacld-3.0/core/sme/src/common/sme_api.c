@@ -7135,7 +7135,7 @@ QDF_STATUS sme_configure_suspend_ind(tHalHandle hHal,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-	cds_msg_t cds_message;
+	cds_msg_t cds_message = {0};
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_CONFIG_SUSPENDIND, NO_SESSION,
@@ -11333,6 +11333,17 @@ void sme_set_prefer_80MHz_over_160MHz(tHalHandle hal,
 	mac_ctx->sta_prefer_80MHz_over_160MHz = sta_prefer_80MHz_over_160MHz;
 }
 
+/**
+ * sme_set_allow_adj_ch_bcn() - API to set allow_adj_ch_bcn
+ * @hal:           The handle returned by macOpen
+ * @allow_adj_ch_bcn: allow_adj_ch_bcn config param
+ */
+void sme_set_allow_adj_ch_bcn(tHalHandle hal, bool allow_adj_ch_bcn)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	mac_ctx->allow_adj_ch_bcn = allow_adj_ch_bcn;
+}
 #ifdef WLAN_FEATURE_DSRC
 /**
  * sme_set_dot11p_config() - API to set the 802.11p config

@@ -4344,6 +4344,8 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 
 		hdd_wmm_init(adapter);
 
+		adapter->scan_info.mScanPending = false;
+
 		switch (adapter->device_mode) {
 		case QDF_STA_MODE:
 		case QDF_P2P_CLIENT_MODE:
@@ -4355,7 +4357,6 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 			hdd_init_station_mode(adapter);
 			/* Open the gates for HDD to receive Wext commands */
 			adapter->isLinkUpSvcNeeded = false;
-			adapter->scan_info.mScanPending = false;
 
 			/* Indicate disconnect event to supplicant if associated previously */
 			if (eConnectionState_Associated == connState ||
@@ -4909,15 +4910,9 @@ static int hdd_register_notifiers(hdd_context_t *hdd_ctx)
 {
 	int ret;
 
-	ret = register_netdevice_notifier(&hdd_netdev_notifier);
-	if (ret) {
-		hdd_err("register_netdevice_notifier failed: %d", ret);
-		goto out;
-	}
-
 	ret = hdd_wlan_register_ip6_notifier(hdd_ctx);
 	if (ret)
-		goto unregister_notifier;
+		goto out;
 
 	hdd_ctx->ipv4_notifier.notifier_call = wlan_hdd_ipv4_changed;
 	ret = register_inetaddr_notifier(&hdd_ctx->ipv4_notifier);
@@ -4930,8 +4925,6 @@ static int hdd_register_notifiers(hdd_context_t *hdd_ctx)
 
 unregister_ip6_notifier:
 	hdd_wlan_unregister_ip6_notifier(hdd_ctx);
-unregister_notifier:
-	unregister_netdevice_notifier(&hdd_netdev_notifier);
 out:
 	return ret;
 
@@ -4950,8 +4943,6 @@ void hdd_unregister_notifiers(hdd_context_t *hdd_ctx)
 	hdd_wlan_unregister_ip6_notifier(hdd_ctx);
 
 	unregister_inetaddr_notifier(&hdd_ctx->ipv4_notifier);
-
-	unregister_netdevice_notifier(&hdd_netdev_notifier);
 }
 
 /**
@@ -5306,6 +5297,8 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	hdd_runtime_suspend_context_deinit(hdd_ctx);
 	hdd_close_all_adapters(hdd_ctx, false);
+
+	unregister_netdevice_notifier(&hdd_netdev_notifier);
 
 	hdd_ipa_cleanup(hdd_ctx);
 
@@ -8281,6 +8274,8 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	sme_set_prefer_80MHz_over_160MHz(hdd_ctx->hHal,
 			hdd_ctx->config->sta_prefer_80MHz_over_160MHz);
 
+	sme_set_allow_adj_ch_bcn(hdd_ctx->hHal,
+			hdd_ctx->config->allow_adj_ch_bcn);
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);
@@ -8857,6 +8852,12 @@ int hdd_wlan_startup(struct device *dev)
 
 	hdd_initialize_mac_address(hdd_ctx);
 
+	ret = register_netdevice_notifier(&hdd_netdev_notifier);
+	if (ret) {
+		hdd_err("register_netdevice_notifier failed: %d", ret);
+		goto err_ipa_cleanup;
+	}
+
 	rtnl_held = hdd_hold_rtnl_lock();
 
 	ret = hdd_open_interfaces(hdd_ctx, rtnl_held);
@@ -8955,6 +8956,7 @@ err_release_rtnl_lock:
 	if (rtnl_held)
 		hdd_release_rtnl_lock();
 
+err_ipa_cleanup:
 	hdd_ipa_cleanup(hdd_ctx);
 
 err_wiphy_unregister:

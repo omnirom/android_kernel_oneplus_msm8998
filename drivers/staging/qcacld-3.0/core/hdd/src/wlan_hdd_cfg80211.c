@@ -2326,6 +2326,42 @@ wlan_hdd_cfg80211_get_features(struct wiphy *wiphy,
 #define PRAM_SSID_LIST QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID_LIST
 #define PARAM_LIST_SSID  QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID
 
+#define MAX_ROAMING_PARAM \
+	QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX
+
+static const struct nla_policy
+wlan_hdd_set_roam_param_policy[MAX_ROAMING_PARAM + 1] = {
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_SUBCMD] = {.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_REQ_ID] = {.type = NLA_U32},
+	[PARAM_NUM_NW] = {.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_BOOST_FACTOR] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_PENALTY_FACTOR] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_MAX_BOOST] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_LAZY_ROAM_HISTERESYS] = {
+						.type = NLA_S32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_BOOST_THRESHOLD] = {
+						.type = NLA_S32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_PENALTY_THRESHOLD] = {
+						.type = NLA_S32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_ALERT_ROAM_RSSI_TRIGGER] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_LAZY_ROAM_ENABLE] = {
+						.type = NLA_S32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_LAZY_ROAM_NUM_BSSID] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_LAZY_ROAM_RSSI_MODIFIER] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_BSSID_PARAMS_NUM_BSSID] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_LAZY_ROAM_BSSID] = {
+						.type = NLA_UNSPEC,
+						.len = QDF_MAC_ADDR_SIZE},
+	[PARAM_SET_BSSID] = {.type = NLA_UNSPEC, .len = QDF_MAC_ADDR_SIZE},
+};
+
 /**
  * __wlan_hdd_cfg80211_set_ext_roam_params() - Settings for roaming parameters
  * @wiphy:                 The wiphy structure
@@ -2374,7 +2410,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX,
 		data, data_len,
-		NULL)) {
+		wlan_hdd_set_roam_param_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
@@ -2412,7 +2448,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 				if (nla_parse(tb2,
 					QCA_WLAN_VENDOR_ATTR_ROAM_SUBCMD_MAX,
 					nla_data(curr_attr), nla_len(curr_attr),
-					NULL)) {
+					wlan_hdd_set_roam_param_policy)) {
 					hdd_err("nla_parse failed");
 					goto fail;
 				}
@@ -2572,7 +2608,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 			if (nla_parse(tb2,
 				QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX,
 				nla_data(curr_attr), nla_len(curr_attr),
-				NULL)) {
+				wlan_hdd_set_roam_param_policy)) {
 				hdd_err("nla_parse failed");
 				goto fail;
 			}
@@ -2634,7 +2670,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 				if (nla_parse(tb2,
 				   QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX,
 				   nla_data(curr_attr), nla_len(curr_attr),
-				   NULL)) {
+				   wlan_hdd_set_roam_param_policy)) {
 					hdd_err("nla_parse failed");
 					goto fail;
 				}
@@ -11057,10 +11093,17 @@ static int __wlan_hdd_change_station(struct wiphy *wiphy,
 			StaParams.supported_oper_classes_len =
 				params->supported_oper_classes_len;
 
+			if (params->ext_capab_len >
+			    sizeof(StaParams.extn_capability)) {
+				hdd_debug("received extn capabilities:%d, resetting it to max supported",
+					  params->ext_capab_len);
+				params->ext_capab_len =
+					sizeof(StaParams.extn_capability);
+			}
 			if (0 != params->ext_capab_len)
 				qdf_mem_copy(StaParams.extn_capability,
 					     params->ext_capab,
-					     sizeof(StaParams.extn_capability));
+					     params->ext_capab_len);
 
 			if (NULL != params->ht_capa) {
 				StaParams.htcap_present = 1;
@@ -15898,6 +15941,7 @@ static int __wlan_hdd_cfg80211_testmode(struct wiphy *wiphy,
 			return -ENOMEM;
 		}
 
+		qdf_mem_zero(hb_params, sizeof(tSirLPHBReq));
 		qdf_mem_copy(hb_params, buf, buf_len);
 		smeStatus =
 			sme_lphb_config_req((tHalHandle) (pHddCtx->hHal),

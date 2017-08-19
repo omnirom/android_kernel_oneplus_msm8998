@@ -790,6 +790,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_SCAN_PROBE_REPEAT_TIME_MIN,
 		     CFG_SCAN_PROBE_REPEAT_TIME_MAX),
 
+	REG_VARIABLE(CFG_SCAN_ALLOW_ADJ_CH_BCN_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, allow_adj_ch_bcn,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SCAN_ALLOW_ADJ_CH_BCN_DEFAULT,
+		     CFG_SCAN_ALLOW_ADJ_CH_BCN_MIN,
+		     CFG_SCAN_ALLOW_ADJ_CH_BCN_MAX),
+
 	REG_VARIABLE(CFG_RETRY_LIMIT_ZERO_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, retryLimitZero,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -2083,6 +2090,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_VHT_ENABLE_2x2_CAP_FEATURE_DEFAULT,
 		     CFG_VHT_ENABLE_2x2_CAP_FEATURE_MIN,
 		     CFG_VHT_ENABLE_2x2_CAP_FEATURE_MAX),
+
+	REG_VARIABLE(CFG_DISABLE_HIGH_HT_RX_MCS_2x2, WLAN_PARAM_Integer,
+		     struct hdd_config, disable_high_ht_mcs_2x2,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DISABLE_HIGH_HT_RX_MCS_2x2_DEFAULT,
+		     CFG_DISABLE_HIGH_HT_RX_MCS_2x2_MIN,
+		     CFG_DISABLE_HIGH_HT_RX_MCS_2x2_MAX),
 
 	REG_VARIABLE(CFG_VDEV_TYPE_NSS_2G, WLAN_PARAM_Integer,
 		     struct hdd_config, vdev_type_nss_2g,
@@ -7427,6 +7441,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 
 	smeConfig->csrConfig.enableTxLdpc = pConfig->enableTxLdpc;
 	smeConfig->csrConfig.enableRxLDPC = pConfig->enableRxLDPC;
+	smeConfig->csrConfig.disable_high_ht_mcs_2x2 =
+					pConfig->disable_high_ht_mcs_2x2;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	smeConfig->csrConfig.cc_switch_mode = pConfig->WlanMccToSccSwitchMode;
 #endif

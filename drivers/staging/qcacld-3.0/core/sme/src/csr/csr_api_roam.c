@@ -2504,6 +2504,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->send_smps_action;
 		pMac->roam.configParam.txLdpcEnable = pParam->enableTxLdpc;
 		pMac->roam.configParam.rxLdpcEnable = pParam->enableRxLDPC;
+		pMac->roam.configParam.disable_high_ht_mcs_2x2 =
+					pParam->disable_high_ht_mcs_2x2;
 		pMac->roam.configParam.ignore_peer_erp_info =
 			pParam->ignore_peer_erp_info;
 		pMac->roam.configParam.max_amsdu_num =
@@ -2772,6 +2774,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 #endif
 	pParam->enableTxLdpc = cfg_params->txLdpcEnable;
 	pParam->enableRxLDPC = cfg_params->rxLdpcEnable;
+	pParam->disable_high_ht_mcs_2x2 = cfg_params->disable_high_ht_mcs_2x2;
 	pParam->max_amsdu_num = cfg_params->max_amsdu_num;
 	pParam->nSelect5GHzMargin = cfg_params->nSelect5GHzMargin;
 	pParam->isCoalesingInIBSSAllowed = cfg_params->isCoalesingInIBSSAllowed;

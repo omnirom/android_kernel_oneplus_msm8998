@@ -856,6 +856,28 @@ typedef enum {
 #define CFG_SCAN_PROBE_REPEAT_TIME_MAX        (30)
 #define CFG_SCAN_PROBE_REPEAT_TIME_DEFAULT    (0)
 
+/*
+ * <ini>
+ * allow_adj_chan_bcns - Set to accept the beacons from adjacent channels
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to accept the beacons from adjacent channels
+ *
+ * Related: None
+ *
+ * Supported Feature: Scan
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_NAME       "allow_adj_chan_bcns"
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_MIN        (0)
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_MAX        (1)
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_DEFAULT    (0)
+
 #ifdef FEATURE_WLAN_EXTSCAN
 /*
  * <ini>
@@ -4527,6 +4549,36 @@ typedef enum {
 #define CFG_VHT_ENABLE_2x2_CAP_FEATURE_MIN     (0)
 #define CFG_VHT_ENABLE_2x2_CAP_FEATURE_MAX     (1)
 #define CFG_VHT_ENABLE_2x2_CAP_FEATURE_DEFAULT (0)
+
+/*
+ * <ini>
+ * disable_high_ht_mcs_2x2 - disable high mcs index for 2nd stream in 2.4G
+ * @Min: 0
+ * @Max: 8
+ * @Default: 0
+ *
+ * This ini is used to disable high HT MCS index for 2.4G STA connection.
+ * It has been introduced to resolve IOT issue with one of the vendor.
+ *
+ * Note: This INI is not useful with 1x1 setting. If some platform supports
+ * only 1x1 then this INI is not useful.
+ *
+ * 0 - It won't disable any HT MCS index (just like normal HT MCS)
+ * 1 - It will disable 15th bit from HT RX MCS set (from 8-15 bits slot)
+ * 2 - It will disable 14th & 15th bits from HT RX MCS set
+ * 3 - It will disable 13th, 14th, & 15th bits from HT RX MCS set
+ * and so on.
+ *
+ * Related: STA
+ *
+ * Supported Feature: 11n
+ *
+ * Usage: External
+ */
+#define CFG_DISABLE_HIGH_HT_RX_MCS_2x2         "disable_high_ht_mcs_2x2"
+#define CFG_DISABLE_HIGH_HT_RX_MCS_2x2_MIN     (0)
+#define CFG_DISABLE_HIGH_HT_RX_MCS_2x2_MAX     (8)
+#define CFG_DISABLE_HIGH_HT_RX_MCS_2x2_DEFAULT (0)
 
 /*
  * <ini>
@@ -10364,6 +10416,7 @@ struct hdd_config {
 	uint32_t nActiveMaxChnTime;     /* in units of milliseconds */
 	uint32_t scan_probe_repeat_time;
 	uint32_t scan_num_probes;
+	bool allow_adj_ch_bcn;
 
 	uint32_t nInitialDwellTime;     /* in units of milliseconds */
 	bool initial_scan_no_dfs_chnl;
@@ -10576,6 +10629,7 @@ struct hdd_config {
 	bool enable_su_tx_bformer;
 	uint8_t vhtRxMCS2x2;
 	uint8_t vhtTxMCS2x2;
+	uint8_t disable_high_ht_mcs_2x2;
 	bool enable2x2;
 	uint32_t vdev_type_nss_2g;
 	uint32_t vdev_type_nss_5g;

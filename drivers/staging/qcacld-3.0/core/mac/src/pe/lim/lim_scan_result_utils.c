@@ -115,7 +115,7 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 		     (uint8_t *) pHdr->bssId, sizeof(tSirMacAddr));
 
 	/* Copy Timestamp, Beacon Interval and Capability Info */
-	pBssDescr->scansystimensec = qdf_get_monotonic_boottime_ns();
+	pBssDescr->scansystimensec = qdf_get_bootbased_boottime_ns();
 
 	pBssDescr->timeStamp[0] = pBPR->timeStamp[0];
 	pBssDescr->timeStamp[1] = pBPR->timeStamp[1];
@@ -275,6 +275,8 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 	uint8_t rf_band = 0;
 	uint8_t rx_chan_bd = 0;
 	uint32_t flags = 0;
+	bool drop_bcn_prb_rsp = true;
+	uint8_t freq_diff = 0;
 
 	tSirMacAddr bssid_zero =  {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 	tpSirMacDataHdr3a hdr;
@@ -315,17 +317,24 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 
 		if (rx_chan_bd != rx_chan_in_beacon) {
 			/* Drop beacon, if CH do not match */
-			if (!fProbeRsp) {
+			if (mac_ctx->allow_adj_ch_bcn) {
+				freq_diff = abs(cds_chan_to_freq(rx_chan_bd) -
+						cds_chan_to_freq(
+							rx_chan_in_beacon));
+				if (freq_diff <= 10)
+					drop_bcn_prb_rsp = false;
+			}
+			/* Drop beacon, if CH do not match, Drop */
+			if (!fProbeRsp && drop_bcn_prb_rsp) {
 				lim_log(mac_ctx, LOG3,
 					FL("Beacon/Probe Rsp dropped. Channel in BD %d. Channel in beacon %d"),
-					WMA_GET_RX_CH(rx_packet_info),
-					lim_get_channel_from_beacon(mac_ctx,
-						bpr));
+					rx_chan_bd, rx_chan_in_beacon);
 				return;
 			}
 			/* Probe RSP, do not drop */
 			else {
-				flags |= WLAN_SKIP_RSSI_UPDATE;
+				if (!mac_ctx->allow_adj_ch_bcn)
+					flags |= WLAN_SKIP_RSSI_UPDATE;
 				lim_log(mac_ctx, LOG3,
 					FL("SSID %s, CH in ProbeRsp %d, CH in BD %d, mismatch, Do Not Drop"),
 					bpr->ssId.ssId, rx_chan_in_beacon,

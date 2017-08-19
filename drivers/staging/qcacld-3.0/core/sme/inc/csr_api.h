@@ -1243,6 +1243,7 @@ typedef struct tagCsrConfigParam {
 	uint8_t scanCfgAgingTime;
 	uint8_t enableTxLdpc;
 	uint8_t enableRxLDPC;
+	uint8_t disable_high_ht_mcs_2x2;
 	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
 	uint8_t isCoalesingInIBSSAllowed;
