@@ -456,6 +456,7 @@ static void diag_close_logging_process(const int pid)
 {
 	int i, j;
 	int session_mask;
+	uint32_t p_mask;
 	struct diag_md_session_t *session_info = NULL;
 	struct diag_logging_mode_param_t params;
 
@@ -475,6 +476,9 @@ static void diag_close_logging_process(const int pid)
 	session_mask = session_info->peripheral_mask;
 	diag_md_session_close(session_info);
 
+	p_mask =
+	diag_translate_kernel_to_user_mask(session_mask);
+
 	for (i = 0; i < NUM_MD_SESSIONS; i++)
 		if (MD_PERIPHERAL_MASK(i) & session_mask)
 			diag_mux_close_peripheral(DIAG_LOCAL_PROC, i);
@@ -482,19 +486,17 @@ static void diag_close_logging_process(const int pid)
 	params.req_mode = USB_MODE;
 	params.mode_param = 0;
 	params.pd_mask = 0;
-	params.peripheral_mask =
-		diag_translate_kernel_to_user_mask(session_mask);
+	params.peripheral_mask = p_mask;
 
 	if (driver->num_pd_session > 0) {
-		for (i = UPD_WLAN; ((i < NUM_MD_SESSIONS) &&
-			(session_mask & MD_PERIPHERAL_MASK(i)));
-			i++) {
-			j = i - UPD_WLAN;
-			driver->pd_session_clear[j] = 1;
-			driver->pd_logging_mode[j] = 0;
-			driver->num_pd_session -= 1;
-			params.pd_mask =
-			diag_translate_kernel_to_user_mask(session_mask);
+		for (i = UPD_WLAN; (i < NUM_MD_SESSIONS); i++) {
+			if (session_mask & MD_PERIPHERAL_MASK(i)) {
+				j = i - UPD_WLAN;
+				driver->pd_session_clear[j] = 1;
+				driver->pd_logging_mode[j] = 0;
+				driver->num_pd_session -= 1;
+				params.pd_mask = p_mask;
+			}
 		}
 	}
 
@@ -1020,6 +1022,11 @@ static int diag_send_raw_data_remote(int proc, void *buf, int len,
 	else
 		hdlc_disabled = driver->hdlc_disabled;
 	if (hdlc_disabled) {
+		if (len < 4) {
+			pr_err("diag: In %s, invalid len: %d of non_hdlc pkt",
+			__func__, len);
+			return -EBADMSG;
+		}
 		payload = *(uint16_t *)(buf + 2);
 		if (payload > DIAG_MAX_HDLC_BUF_SIZE) {
 			pr_err("diag: Dropping packet, payload size is %d\n",
@@ -1028,11 +1035,21 @@ static int diag_send_raw_data_remote(int proc, void *buf, int len,
 		}
 		driver->hdlc_encode_buf_len = payload;
 		/*
-		 * Adding 4 bytes for start (1 byte), version (1 byte) and
-		 * payload (2 bytes)
+		 * Adding 5 bytes for start (1 byte), version (1 byte),
+		 * payload (2 bytes) and end (1 byte)
 		 */
-		memcpy(driver->hdlc_encode_buf, buf + 4, payload);
-		goto send_data;
+		if (len == (payload + 5)) {
+			/*
+			 * Adding 4 bytes for start (1 byte), version (1 byte)
+			 * and payload (2 bytes)
+			 */
+			memcpy(driver->hdlc_encode_buf, buf + 4, payload);
+			goto send_data;
+		} else {
+			pr_err("diag: In %s, invalid len: %d of non_hdlc pkt",
+			__func__, len);
+			return -EBADMSG;
+		}
 	}
 
 	if (hdlc_flag) {
@@ -1819,14 +1836,18 @@ static int diag_ioctl_lsm_deinit(void)
 {
 	int i;
 
+	mutex_lock(&driver->diagchar_mutex);
 	for (i = 0; i < driver->num_clients; i++)
 		if (driver->client_map[i].pid == current->tgid)
 			break;
 
-	if (i == driver->num_clients)
+	if (i == driver->num_clients) {
+		mutex_unlock(&driver->diagchar_mutex);
 		return -EINVAL;
+	}
 
 	driver->data_ready[i] |= DEINIT_TYPE;
+	mutex_unlock(&driver->diagchar_mutex);
 	wake_up_interruptible(&driver->wait_q);
 
 	return 1;
@@ -2394,7 +2415,9 @@ long diagchar_ioctl(struct file *filp,
 		mutex_unlock(&driver->dci_mutex);
 		break;
 	case DIAG_IOCTL_DCI_EVENT_STATUS:
+		mutex_lock(&driver->dci_mutex);
 		result = diag_ioctl_dci_event_status(ioarg);
+		mutex_unlock(&driver->dci_mutex);
 		break;
 	case DIAG_IOCTL_DCI_CLEAR_LOGS:
 		mutex_lock(&driver->dci_mutex);
