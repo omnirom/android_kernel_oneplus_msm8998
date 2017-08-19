@@ -5,23 +5,28 @@
 #include <linux/page_ext.h>
 #include <linux/poison.h>
 #include <linux/ratelimit.h>
+
 static bool want_page_poisoning __read_mostly
 		= IS_ENABLED(CONFIG_PAGE_POISONING_ENABLE_DEFAULT);
+
 static int early_page_poison_param(char *buf)
 {
 	if (!buf)
 		return -EINVAL;
+
 	if (strcmp(buf, "on") == 0)
 		want_page_poisoning = true;
 	else if (strcmp(buf, "off") == 0)
 		want_page_poisoning = false;
+
 	return 0;
 }
 early_param("page_poison", early_page_poison_param);
+
 bool page_poisoning_enabled(void)
 {
-    /*
-     *  Assumes that debug_pagealloc_enabled is set before
+	/*
+	 * Assumes that debug_pagealloc_enabled is set before
 	 * free_all_bootmem.
 	 * Page poisoning is debug page alloc for some arches. If
 	 * either of those options are enabled, enable poisoning.
@@ -58,8 +63,9 @@ static void check_poison_mem(struct page *page,
 	unsigned char *start;
 	unsigned char *end;
 
-    if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
+	if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
 		return;
+
 	start = memchr_inv(mem, PAGE_POISON, bytes);
 	if (!start)
 		return;
@@ -100,6 +106,7 @@ static void unpoison_pages(struct page *page, int n)
 	for (i = 0; i < n; i++)
 		unpoison_page(page + i);
 }
+
 void kernel_poison_pages(struct page *page, int numpages, int enable)
 {
 	if (!page_poisoning_enabled())
@@ -109,6 +116,7 @@ void kernel_poison_pages(struct page *page, int numpages, int enable)
 	else
 		poison_pages(page, numpages);
 }
+
 #ifndef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {

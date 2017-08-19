@@ -2306,7 +2306,6 @@ extern void copy_user_huge_page(struct page *dst, struct page *src,
 
 extern struct page_ext_operations debug_guardpage_ops;
 
-
 #ifdef CONFIG_DEBUG_PAGEALLOC
 extern unsigned int _debug_guardpage_minorder;
 extern bool _debug_guardpage_enabled;

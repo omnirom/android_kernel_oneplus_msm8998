@@ -73,7 +73,6 @@ enum print_reason {
 #define MICRO_USB_VOTER			"MICRO_USB_VOTER"
 #define DEBUG_BOARD_VOTER		"DEBUG_BOARD_VOTER"
 #define PD_SUSPEND_SUPPORTED_VOTER	"PD_SUSPEND_SUPPORTED_VOTER"
-#define PL_DELAY_VOTER			"PL_DELAY_VOTER"
 #define PL_DELAY_HVDCP_VOTER		"PL_DELAY_HVDCP_VOTER"
 #define CTM_VOTER			"CTM_VOTER"
 #define SW_QC3_VOTER			"SW_QC3_VOTER"
@@ -319,7 +318,6 @@ struct smb_charger {
 	struct work_struct	vconn_oc_work;
 	struct delayed_work	otg_ss_done_work;
 	struct delayed_work	icl_change_work;
-	struct delayed_work	pl_enable_work;
 	struct work_struct	legacy_detection_work;
 	/* cached status */
 /* david.liu@bsp, 20160926 Add dash charging */
@@ -405,12 +403,10 @@ struct smb_charger {
 	int			vconn_attempts;
 	int			default_icl_ua;
 	int			otg_cl_ua;
-	bool			uusb_apsd_rerun_done;
 	bool			pd_hard_reset;
 	int			usb_present;
 	u8			typec_status[5];
 	bool			typec_legacy_valid;
-
 	/* workaround flag */
 	u32			wa_flags;
 	bool                    cc2_sink_detach_flag;
@@ -604,10 +600,9 @@ int smblib_rerun_apsd_if_required(struct smb_charger *chg);
 int smblib_get_prop_fcc_delta(struct smb_charger *chg,
 			       union power_supply_propval *val);
 int smblib_icl_override(struct smb_charger *chg, bool override);
+int smblib_set_icl_reduction(struct smb_charger *chg, int reduction_ua);
 int smblib_dp_dm(struct smb_charger *chg, int val);
 int smblib_rerun_aicl(struct smb_charger *chg);
-int smblib_set_icl_current(struct smb_charger *chg, int icl_ua);
-int smblib_get_charge_current(struct smb_charger *chg, int *total_current_ua);
 
 int smblib_init(struct smb_charger *chg);
 int smblib_deinit(struct smb_charger *chg);

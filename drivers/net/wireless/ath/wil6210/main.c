@@ -582,6 +582,9 @@ int wil_priv_init(struct wil6210_priv *wil)
 
 	wil->ps_profile =  WMI_PS_PROFILE_TYPE_DEFAULT;
 
+	wil->wakeup_trigger = WMI_WAKEUP_TRIGGER_UCAST |
+			      WMI_WAKEUP_TRIGGER_BCAST;
+
 	return 0;
 
 out_wmi_wq:
@@ -592,8 +595,10 @@ out_wmi_wq:
 
 void wil6210_bus_request(struct wil6210_priv *wil, u32 kbps)
 {
-	if (wil->platform_ops.bus_request)
+	if (wil->platform_ops.bus_request) {
+		wil->bus_request_kbps = kbps;
 		wil->platform_ops.bus_request(wil->platform_handle, kbps);
+	}
 }
 
 /**
@@ -1058,6 +1063,9 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 			wil_err(wil, "wmi_echo failed, rc %d\n", rc);
 			return rc;
 		}
+
+		if (wil->ps_profile != WMI_PS_PROFILE_TYPE_DEFAULT)
+			wil_ps_update(wil, wil->ps_profile);
 
 		wil_collect_fw_info(wil);
 

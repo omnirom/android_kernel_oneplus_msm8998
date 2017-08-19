@@ -26,7 +26,7 @@
 #include <sound/tlv.h>
 #include <btfm_slim.h>
 
-int bt_soc_enable_status = 0;
+static int bt_soc_enable_status;
 
 
 static int btfm_slim_codec_write(struct snd_soc_codec *codec, unsigned int reg,
@@ -161,8 +161,8 @@ int btfm_slim_dai_prepare(struct snd_pcm_substream *substream,
 	BTFMSLIM_DBG("dai->name: %s, dai->id: %d, dai->rate: %d", dai->name,
 		dai->id, dai->rate);
 
-    /* save sample rate */
-    btfmslim->sample_rate = dai->rate;
+	/* save sample rate */
+	btfmslim->sample_rate = dai->rate;
 
 	switch (dai->id) {
 	case BTFM_FM_SLIM_TX:
@@ -201,7 +201,7 @@ int btfm_slim_dai_prepare(struct snd_pcm_substream *substream,
 
 	/* save the enable channel status */
 	if (ret == 0)
-	        bt_soc_enable_status = 1;
+		bt_soc_enable_status = 1;
 	return ret;
 }
 
