@@ -32,6 +32,7 @@ static struct camera_vendor_match_tbl match_tbl[] = {
     {"imx179","Sony"},
     {"s5k3p8sp","SAMSUNG"},
     {"imx376k","Sony"},
+
 };
 
 /* Logging macro */
@@ -766,6 +767,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 	struct msm_camera_cci_client        *cci_client = NULL;
 	struct msm_camera_sensor_slave_info *slave_info = NULL;
 	struct msm_camera_slave_info        *camera_info = NULL;
+
 /* chenneng@camera 20151117 add for product information */
 	uint32_t count = 0,i;
 	enum COMPONENT_TYPE CameraID;
@@ -1110,6 +1112,7 @@ CSID_TG:
 
 	/*Save sensor info*/
 	s_ctrl->sensordata->cam_slave_info = slave_info;
+
 
 /* chenneng@camera 20151117 add for product information */
     if (0 == slave_info->camera_id)
