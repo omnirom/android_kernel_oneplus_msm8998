@@ -248,10 +248,9 @@ struct sctp_association *sctp_id2assoc(struct sock *sk, sctp_assoc_t id)
 
 	spin_lock_bh(&sctp_assocs_id_lock);
 	asoc = (struct sctp_association *)idr_find(&sctp_assocs_id, (int)id);
+	if (asoc && (asoc->base.sk != sk || asoc->base.dead))
+		asoc = NULL;
 	spin_unlock_bh(&sctp_assocs_id_lock);
-
-	if (!asoc || (asoc->base.sk != sk) || asoc->base.dead)
-		return NULL;
 
 	return asoc;
 }
@@ -7444,7 +7443,7 @@ struct proto sctp_prot = {
 	.backlog_rcv =	sctp_backlog_rcv,
 	.hash        =	sctp_hash,
 	.unhash      =	sctp_unhash,
-	.get_port    =	sctp_get_port,
+	.no_autobind =	true,
 	.obj_size    =  sizeof(struct sctp_sock),
 	.sysctl_mem  =  sysctl_sctp_mem,
 	.sysctl_rmem =  sysctl_sctp_rmem,
@@ -7483,7 +7482,7 @@ struct proto sctpv6_prot = {
 	.backlog_rcv	= sctp_backlog_rcv,
 	.hash		= sctp_hash,
 	.unhash		= sctp_unhash,
-	.get_port	= sctp_get_port,
+	.no_autobind	= true,
 	.obj_size	= sizeof(struct sctp6_sock),
 	.sysctl_mem	= sysctl_sctp_mem,
 	.sysctl_rmem	= sysctl_sctp_rmem,
